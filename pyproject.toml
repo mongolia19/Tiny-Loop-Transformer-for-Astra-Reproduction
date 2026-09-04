@@ -23,6 +23,10 @@ recurrent-transformer = "recurrent_transformer.cli:main"
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+filterwarnings = [
+  "ignore:builtin type SwigPy.* has no __module__ attribute:DeprecationWarning",
+  "ignore:builtin type swigvarlink has no __module__ attribute:DeprecationWarning",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/recurrent_transformer"]

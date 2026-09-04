@@ -1,0 +1,3 @@
+Recurrent transformers reuse the same computation blocks at multiple depths.
+Language modeling predicts the next token from all previous tokens.
+Small experiments should be reproducible, bounded, and honest about their limits.
