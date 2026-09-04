@@ -1,0 +1,8 @@
+.worktrees/
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+artifacts/
+data/
+*.egg-info/
