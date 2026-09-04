@@ -1,5 +1,7 @@
 # Tiny Loop Transformer for Astra Reproduction
 
+[中文文档 / Chinese README](README.zh-CN.md)
+
 This is a tiny, local-first loop Transformer reproduction inspired by the recurrent-depth ideas discussed around Astra. It reuses a fixed shared core at inference time, increasing effective computation without increasing physical parameter count.
 
 A small, auditable reproduction of recurrent-depth language modeling. The physical model has **97,241,856 trainable parameters**. It applies two prelude blocks, repeatedly applies the same eight-block core, and finishes with two coda blocks.
