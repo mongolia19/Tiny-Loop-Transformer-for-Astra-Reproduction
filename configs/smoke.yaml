@@ -15,6 +15,14 @@ data:
   tokenizer_vocab_size: 16000
   validation_fraction: 0.01
   seed: 42
+  english_dataset_id: HuggingFaceFW/fineweb-edu
+  english_dataset_config: sample-10BT
+  english_text_key: text
+  chinese_dataset_id: 0xDing/wikipedia-cn-20230720-filtered
+  chinese_dataset_config: null
+  chinese_text_key: completion
+  dataset_revision: main
+  artifact_dir: data/smoke
 train:
   max_steps: 20
   micro_batch_size: 1

@@ -44,6 +44,14 @@ class DataConfig:
     tokenizer_vocab_size: int = 16_000
     validation_fraction: float = 0.01
     seed: int = 42
+    english_dataset_id: str = "HuggingFaceFW/fineweb-edu"
+    english_dataset_config: str | None = "sample-10BT"
+    english_text_key: str = "text"
+    chinese_dataset_id: str = "0xDing/wikipedia-cn-20230720-filtered"
+    chinese_dataset_config: str | None = None
+    chinese_text_key: str = "completion"
+    dataset_revision: str = "main"
+    artifact_dir: str = "data/smoke"
 
     def __post_init__(self) -> None:
         if self.max_bytes_per_language <= 0:

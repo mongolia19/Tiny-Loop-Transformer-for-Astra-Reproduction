@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import random
 import re
+import shutil
 import unicodedata
 from pathlib import Path
 from typing import Iterable, Sequence
@@ -53,6 +54,75 @@ def read_local_documents(
     if not documents:
         raise ValueError("corpus contains no usable documents")
     return documents
+
+
+def collect_streamed_documents(
+    rows: Iterable[dict],
+    *,
+    text_key: str,
+    max_bytes: int,
+) -> list[str]:
+    if max_bytes <= 0:
+        raise ValueError("max_bytes must be positive")
+    documents: list[str] = []
+    seen: set[str] = set()
+    total_bytes = 0
+    for row_number, row in enumerate(rows, 1):
+        if text_key not in row:
+            raise ValueError(f"stream row {row_number} has no {text_key!r} field")
+        document = normalize_text(str(row[text_key]))
+        if not document or document in seen:
+            continue
+        size = len(document.encode("utf-8"))
+        if total_bytes + size > max_bytes:
+            break
+        documents.append(document)
+        seen.add(document)
+        total_bytes += size
+    if not documents:
+        raise ValueError("stream contains no usable documents within the byte cap")
+    return documents
+
+
+def check_disk_budget(target_dir: str | Path, requested_bytes: int, reserve_bytes: int = 2 * 1024**3) -> None:
+    target = Path(target_dir)
+    existing = target if target.exists() else target.parent
+    while not existing.exists():
+        existing = existing.parent
+    free = shutil.disk_usage(existing).free
+    if requested_bytes + reserve_bytes > free:
+        raise OSError(
+            f"insufficient disk space: need {requested_bytes + reserve_bytes} bytes "
+            f"including reserve, have {free}"
+        )
+
+
+def stream_huggingface_documents(
+    dataset_id: str,
+    *,
+    dataset_config: str | None,
+    split: str,
+    revision: str,
+    text_key: str,
+    max_bytes: int,
+) -> list[str]:
+    try:
+        from datasets import load_dataset
+    except ImportError as exc:
+        raise RuntimeError("remote corpus download requires the 'datasets' package") from exc
+    try:
+        rows = load_dataset(
+            dataset_id,
+            dataset_config,
+            split=split,
+            revision=revision,
+            streaming=True,
+        )
+        return collect_streamed_documents(rows, text_key=text_key, max_bytes=max_bytes)
+    except Exception as exc:
+        raise RuntimeError(
+            f"failed to stream {dataset_id}; check DNS/network access or use local text files"
+        ) from exc
 
 
 def mix_bilingual(english: Sequence[str], chinese: Sequence[str], seed: int = 42) -> list[str]:

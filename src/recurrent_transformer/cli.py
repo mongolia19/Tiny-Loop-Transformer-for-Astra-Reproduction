@@ -6,7 +6,13 @@ from pathlib import Path
 
 from .checkpoint import load_checkpoint
 from .config import ModelConfig
-from .corpus import mix_bilingual, read_local_documents
+from .config import load_config
+from .corpus import (
+    check_disk_budget,
+    mix_bilingual,
+    read_local_documents,
+    stream_huggingface_documents,
+)
 from .dataset import pack_documents
 from .generate import generate_ids
 from .tokenizer import Tokenizer, train_tokenizer
@@ -90,6 +96,38 @@ def _tiny_command(args: argparse.Namespace) -> None:
     print(f"generated: {result.generated_text}")
 
 
+def _write_documents(path: Path, documents: list[str]) -> None:
+    path.write_text("\n".join(documents) + "\n", encoding="utf-8")
+
+
+def _prepare_data_command(args: argparse.Namespace) -> None:
+    cfg = load_config(args.config).data
+    output = Path(args.output or cfg.artifact_dir)
+    check_disk_budget(output, 2 * cfg.max_bytes_per_language)
+    output.mkdir(parents=True, exist_ok=True)
+    english = stream_huggingface_documents(
+        cfg.english_dataset_id,
+        dataset_config=cfg.english_dataset_config,
+        split="train",
+        revision=cfg.dataset_revision,
+        text_key=cfg.english_text_key,
+        max_bytes=cfg.max_bytes_per_language,
+    )
+    chinese = stream_huggingface_documents(
+        cfg.chinese_dataset_id,
+        dataset_config=cfg.chinese_dataset_config,
+        split="train",
+        revision=cfg.dataset_revision,
+        text_key=cfg.chinese_text_key,
+        max_bytes=cfg.max_bytes_per_language,
+    )
+    _write_documents(output / "english.txt", english)
+    _write_documents(output / "chinese.txt", chinese)
+    for language, documents in (("english", english), ("chinese", chinese)):
+        byte_count = sum(len(doc.encode("utf-8")) for doc in documents)
+        print(f"{language}: {len(documents)} documents, {byte_count} bytes")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="recurrent-transformer")
     subparsers = parser.add_subparsers(required=True)
@@ -99,9 +137,17 @@ def build_parser() -> argparse.ArgumentParser:
     tiny.add_argument("--output", required=True)
     tiny.add_argument("--steps", type=int, default=1)
     tiny.set_defaults(handler=_tiny_command)
+    prepare = subparsers.add_parser("prepare-data", help="download bounded bilingual corpora")
+    prepare.add_argument("--config", default="configs/smoke.yaml")
+    prepare.add_argument("--output")
+    prepare.set_defaults(handler=_prepare_data_command)
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
     args.handler(args)
+
+
+if __name__ == "__main__":
+    main()
