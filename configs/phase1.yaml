@@ -1,0 +1,34 @@
+model:
+  vocab_size: 16000
+  d_model: 768
+  n_heads: 12
+  mlp_hidden_size: 2048
+  prelude_layers: 2
+  recurrent_core_layers: 8
+  coda_layers: 2
+  max_seq_len: 512
+  min_recurrences: 1
+  max_recurrences: 4
+data:
+  max_bytes_per_language: 209715200
+  sequence_length: 256
+  tokenizer_vocab_size: 16000
+  validation_fraction: 0.01
+  seed: 42
+  english_dataset_id: HuggingFaceFW/fineweb-edu
+  english_dataset_config: sample-10BT
+  english_text_key: text
+  chinese_dataset_id: 0xDing/wikipedia-cn-20230720-filtered
+  chinese_dataset_config: null
+  chinese_text_key: completion
+  dataset_revision: main
+  artifact_dir: data/phase1
+train:
+  max_steps: 1000
+  micro_batch_size: 1
+  gradient_accumulation_steps: 1
+  learning_rate: 0.0003
+  weight_decay: 0.1
+  max_grad_norm: 1.0
+  device: mps
+  seed: 42

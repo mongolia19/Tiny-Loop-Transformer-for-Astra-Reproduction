@@ -84,6 +84,39 @@ python -m recurrent_transformer.cli train \\
 
 ## 100M smoke 训练
 
+### Apple Silicon MPS（已验证）
+
+建议在项目目录创建带系统 PyTorch 的虚拟环境，避免修改系统 Python：
+
+```bash
+cd /Users/a58/prjs/recurrent-transformer-100m
+python3 -m venv --system-site-packages .venv-mps
+.venv-mps/bin/python -m pip install -U pip
+.venv-mps/bin/python -m pip install sentencepiece pyyaml
+```
+
+先用短序列确认 MPS 可以完成反向传播：
+
+```bash
+PYTHONPATH=src .venv-mps/bin/python -m recurrent_transformer.cli train \
+  --config configs/smoke.yaml \
+  --english tests/fixtures/en.txt --chinese tests/fixtures/zh.txt \
+  --output artifacts/mps-probe --memory-probe \
+  --sequence-length 32 --gradient-accumulation 1 --device mps
+```
+
+探针成功后运行 smoke 训练（Apple Silicon 16GB 建议从此配置开始）：
+
+```bash
+PYTHONPATH=src .venv-mps/bin/python -m recurrent_transformer.cli train \
+  --config configs/smoke.yaml \
+  --english tests/fixtures/en.txt --chinese tests/fixtures/zh.txt \
+  --output artifacts/mps-smoke-20 --steps 20 \
+  --sequence-length 32 --gradient-accumulation 1 --device mps
+```
+
+成功标志是输出 `selected device: mps`、`steps: 20` 和 checkpoint 路径。若进程在 MPS 初始化阶段被系统终止，先关闭其他占用统一内存的程序，并保持 `--sequence-length 32 --gradient-accumulation 1`；确认探针通过后再逐步增加序列长度。
+
 默认配置是上下文 512、micro-batch 1、梯度累积 4、循环次数随机采样 1–4，并对 recurrent core 启用 activation checkpointing。建议先跑一次 memory probe：
 
 ```bash

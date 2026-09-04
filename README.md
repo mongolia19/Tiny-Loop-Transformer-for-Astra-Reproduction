@@ -95,6 +95,39 @@ recurrent-transformer tiny-pipeline \
 
 ## 100M smoke training
 
+### Apple Silicon MPS (verified)
+
+Use a virtual environment that reuses the system PyTorch, then install the small runtime dependencies:
+
+```bash
+cd /Users/a58/prjs/recurrent-transformer-100m
+python3 -m venv --system-site-packages .venv-mps
+.venv-mps/bin/python -m pip install -U pip
+.venv-mps/bin/python -m pip install sentencepiece pyyaml
+```
+
+Run the short MPS probe first:
+
+```bash
+PYTHONPATH=src .venv-mps/bin/python -m recurrent_transformer.cli train \
+  --config configs/smoke.yaml \
+  --english tests/fixtures/en.txt --chinese tests/fixtures/zh.txt \
+  --output artifacts/mps-probe --memory-probe \
+  --sequence-length 32 --gradient-accumulation 1 --device mps
+```
+
+After it reports `selected device: mps`, run 20-step smoke training:
+
+```bash
+PYTHONPATH=src .venv-mps/bin/python -m recurrent_transformer.cli train \
+  --config configs/smoke.yaml \
+  --english tests/fixtures/en.txt --chinese tests/fixtures/zh.txt \
+  --output artifacts/mps-smoke-20 --steps 20 \
+  --sequence-length 32 --gradient-accumulation 1 --device mps
+```
+
+On 16GB Apple Silicon, keep these conservative settings initially and close other apps using unified memory before increasing sequence length.
+
 The default configuration uses a sequence length of 512, micro-batch size 1, gradient accumulation 4, random recurrence count 1–4, activation checkpointing on the shared core, and 20 optimizer steps.
 
 Start with a memory probe:
