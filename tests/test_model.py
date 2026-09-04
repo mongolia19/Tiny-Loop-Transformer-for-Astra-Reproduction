@@ -46,3 +46,12 @@ def test_loss_backward_reaches_shared_core():
     output.loss.backward()
     assert output.loss.isfinite()
     assert all(p.grad is not None for p in model.recurrent_core.parameters())
+
+
+def test_smoke_model_has_about_100m_physical_parameters():
+    from recurrent_transformer.config import load_config
+
+    cfg = load_config("configs/smoke.yaml").model
+    model = RecurrentTransformer(cfg)
+    count = model.num_parameters()
+    assert 95_000_000 <= count <= 105_000_000, count

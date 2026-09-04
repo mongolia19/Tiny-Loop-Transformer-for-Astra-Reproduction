@@ -114,6 +114,13 @@ class RecurrentTransformer(nn.Module):
             x = block(x)
         return x
 
+    def num_parameters(self, trainable_only: bool = True) -> int:
+        unique: dict[int, nn.Parameter] = {}
+        for parameter in self.parameters():
+            if not trainable_only or parameter.requires_grad:
+                unique[id(parameter)] = parameter
+        return sum(parameter.numel() for parameter in unique.values())
+
     def forward(
         self,
         input_ids: Tensor,
