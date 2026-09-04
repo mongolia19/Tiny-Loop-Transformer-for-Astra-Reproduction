@@ -1,4 +1,6 @@
-# Recurrent Transformer 100M
+# Open — Tiny Loop Transformer for Astra Reproduction
+
+**Open** is a tiny, local-first loop Transformer reproduction inspired by the recurrent-depth ideas discussed around Astra. It reuses a fixed shared core at inference time, increasing effective computation without increasing physical parameter count.
 
 A small, auditable reproduction of recurrent-depth language modeling. The physical model has **97,241,856 trainable parameters**. It applies two prelude blocks, repeatedly applies the same eight-block core, and finishes with two coda blocks.
 
@@ -23,6 +25,22 @@ The video's statements about an OpenAI model called “Astra” are media claims
 - A tiny bounded bilingual corpus and locally trained SentencePiece tokenizer.
 - Fixed recurrence selection per micro-batch; no claim of learned latent reasoning.
 
+## 立即运行（无需联网）
+
+```bash
+cd /Users/a58/prjs/recurrent-transformer-100m
+python3 -m venv .venv && source .venv/bin/activate
+python -m pip install -e '.[dev]'
+python -m pytest -q
+python -m recurrent_transformer.cli tiny-pipeline \\
+  --english tests/fixtures/en.txt \\
+  --chinese tests/fixtures/zh.txt \\
+  --output artifacts/tiny \\
+  --steps 1
+```
+
+成功标准：测试显示 `19 passed`，并生成 `artifacts/tiny/checkpoint-000001.pt` 与非空 `generated:` 输出。该命令不需要 Hugging Face、账号或远程语料。
+
 ## Setup
 
 Python 3.11 or newer is required.
@@ -34,7 +52,7 @@ python -m pip install -e '.[dev]'
 python -m pytest -q
 ```
 
-The implementation was tested locally with PyTorch 2.10.0 on Apple Silicon. During the recorded run, external DNS was unavailable, so an existing local Python 3.12 environment supplied PyTorch and SentencePiece.
+实现已在 Apple Silicon + PyTorch 2.10.0 验证。若安装依赖时网络不可用，可使用已有的 PyTorch、SentencePiece、PyYAML、pytest 环境，并将 `python -m recurrent_transformer.cli` 作为统一入口。
 
 ## Corpus
 
@@ -43,7 +61,7 @@ Configured remote sources are deliberately bounded to 20 MiB per language:
 - English: `HuggingFaceFW/fineweb-edu`, `sample-10BT`, ODC-By 1.0.
 - Chinese: `0xDing/wikipedia-cn-20230720-filtered`, CC-BY-SA-3.0.
 
-Download them with:
+可选：下载受限远程语料（立即运行流程不需要）：
 
 ```bash
 recurrent-transformer prepare-data --config configs/smoke.yaml
