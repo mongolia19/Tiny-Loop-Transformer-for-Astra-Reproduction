@@ -67,5 +67,6 @@ def train_tokenizer(
         character_coverage=1.0,
         hard_vocab_limit=False,
         shuffle_input_sentence=False,
+        minloglevel=2,
     )
     return Tokenizer(prefix.with_suffix(".model"))

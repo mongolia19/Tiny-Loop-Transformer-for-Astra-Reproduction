@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
+from torch.utils.checkpoint import checkpoint
 
 from .config import ModelConfig
 
@@ -102,6 +103,7 @@ class RecurrentTransformer(nn.Module):
         self.final_norm = RMSNorm(config.d_model, config.rms_norm_eps)
         self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
         self.lm_head.weight = self.token_embedding.weight
+        self.gradient_checkpointing = False
         self.apply(self._initialize)
 
     @staticmethod
@@ -109,9 +111,15 @@ class RecurrentTransformer(nn.Module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
             nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def _run_blocks(self, x: Tensor, blocks: nn.ModuleList) -> Tensor:
+    def set_gradient_checkpointing(self, enabled: bool = True) -> None:
+        self.gradient_checkpointing = enabled
+
+    def _run_blocks(self, x: Tensor, blocks: nn.ModuleList, *, checkpointed: bool = False) -> Tensor:
         for block in blocks:
-            x = block(x)
+            if checkpointed and self.gradient_checkpointing and self.training:
+                x = checkpoint(block, x, use_reentrant=False)
+            else:
+                x = block(x)
         return x
 
     def num_parameters(self, trainable_only: bool = True) -> int:
@@ -140,7 +148,7 @@ class RecurrentTransformer(nn.Module):
 
         hidden = self._run_blocks(self.token_embedding(input_ids), self.prelude)
         for _ in range(recurrences):
-            hidden = self._run_blocks(hidden, self.recurrent_core)
+            hidden = self._run_blocks(hidden, self.recurrent_core, checkpointed=True)
         hidden = self._run_blocks(hidden, self.coda)
         logits = self.lm_head(self.final_norm(hidden))
         loss = None

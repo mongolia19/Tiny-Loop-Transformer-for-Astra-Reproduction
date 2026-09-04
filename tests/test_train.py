@@ -23,3 +23,18 @@ def test_one_step_updates_shared_core_and_writes_checkpoint(tmp_path):
     assert result.steps == 1 and result.losses[0] > 0
     assert not torch.equal(before, after)
     assert (tmp_path / "checkpoint-000001.pt").exists()
+
+
+def test_gradient_checkpointing_can_be_enabled():
+    model = RecurrentTransformer(tiny_config())
+    assert model.gradient_checkpointing is False
+    model.set_gradient_checkpointing(True)
+    assert model.gradient_checkpointing is True
+
+
+def test_nonfinite_loss_stops_training():
+    import pytest
+    from recurrent_transformer.train import ensure_finite
+
+    with pytest.raises(FloatingPointError, match="non-finite loss"):
+        ensure_finite(float("nan"), what="loss", step=1)

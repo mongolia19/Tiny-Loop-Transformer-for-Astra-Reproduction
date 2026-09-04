@@ -16,7 +16,7 @@ from .corpus import (
 from .dataset import pack_documents
 from .generate import generate_ids
 from .tokenizer import Tokenizer, train_tokenizer
-from .train import train_steps
+from .train import select_device, train_steps
 
 
 @dataclass(frozen=True)
@@ -128,6 +128,73 @@ def _prepare_data_command(args: argparse.Namespace) -> None:
         print(f"{language}: {len(documents)} documents, {byte_count} bytes")
 
 
+def _train_command(args: argparse.Namespace) -> None:
+    cfg = load_config(args.config)
+    output = Path(args.output)
+    english = read_local_documents([args.english], max_bytes=cfg.data.max_bytes_per_language)
+    chinese = read_local_documents([args.chinese], max_bytes=cfg.data.max_bytes_per_language)
+    documents = mix_bilingual(english, chinese, seed=cfg.data.seed)
+    tokenizer = train_tokenizer(
+        documents,
+        output / "tokenizer",
+        vocab_size=cfg.data.tokenizer_vocab_size,
+    )
+    if tokenizer.vocab_size > cfg.model.vocab_size:
+        raise ValueError("tokenizer vocabulary exceeds model vocabulary")
+    sequence_length = args.sequence_length or cfg.data.sequence_length
+    blocks = pack_documents(documents, tokenizer, seq_len=sequence_length)
+    from .model import RecurrentTransformer
+
+    model = RecurrentTransformer(cfg.model)
+    model.set_gradient_checkpointing(True)
+    print(f"physical parameters: {model.num_parameters():,}")
+    steps = 1 if args.memory_probe else (args.steps or cfg.train.max_steps)
+    result = train_steps(
+        model,
+        blocks.split(cfg.train.micro_batch_size),
+        device=args.device or cfg.train.device,
+        max_steps=steps,
+        min_recurrences=cfg.model.min_recurrences,
+        max_recurrences=cfg.model.max_recurrences,
+        output_dir=output,
+        seed=cfg.train.seed,
+        learning_rate=cfg.train.learning_rate,
+        weight_decay=cfg.train.weight_decay,
+        max_grad_norm=cfg.train.max_grad_norm,
+        gradient_accumulation_steps=(
+            args.gradient_accumulation
+            if args.gradient_accumulation is not None
+            else cfg.train.gradient_accumulation_steps
+        ),
+    )
+    print(f"steps: {result.steps}; final loss: {result.losses[-1]:.6f}")
+    print(f"checkpoint: {result.checkpoint}")
+
+
+def _generate_command(args: argparse.Namespace) -> None:
+    checkpoint = Path(args.checkpoint)
+    model, _ = load_checkpoint(checkpoint)
+    tokenizer_path = Path(args.tokenizer) if args.tokenizer else checkpoint.parent / "tokenizer" / "tokenizer.model"
+    tokenizer = Tokenizer(tokenizer_path)
+    import torch
+
+    device = select_device(args.device)
+    model.to(device).eval()
+    prompt_ids = torch.tensor([[tokenizer.bos_id, *tokenizer.encode(args.prompt)]], device=device)
+    for recurrences in (int(value) for value in args.recurrences.split(",")):
+        generated = generate_ids(
+            model,
+            prompt_ids,
+            max_new_tokens=args.max_new_tokens,
+            num_recurrences=recurrences,
+            temperature=args.temperature,
+            top_k=args.top_k,
+            eos_id=tokenizer.eos_id,
+            seed=args.seed,
+        )
+        print(f"[recurrences={recurrences}] {tokenizer.decode(generated[0].tolist())}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="recurrent-transformer")
     subparsers = parser.add_subparsers(required=True)
@@ -141,6 +208,28 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--config", default="configs/smoke.yaml")
     prepare.add_argument("--output")
     prepare.set_defaults(handler=_prepare_data_command)
+    train = subparsers.add_parser("train", help="train from bounded local bilingual files")
+    train.add_argument("--config", default="configs/smoke.yaml")
+    train.add_argument("--english", required=True)
+    train.add_argument("--chinese", required=True)
+    train.add_argument("--output", required=True)
+    train.add_argument("--steps", type=int)
+    train.add_argument("--device", choices=("auto", "mps", "cpu", "cuda"))
+    train.add_argument("--memory-probe", action="store_true")
+    train.add_argument("--sequence-length", type=int)
+    train.add_argument("--gradient-accumulation", type=int)
+    train.set_defaults(handler=_train_command)
+    generate = subparsers.add_parser("generate", help="compare generation at recurrence depths")
+    generate.add_argument("--checkpoint", required=True)
+    generate.add_argument("--tokenizer")
+    generate.add_argument("--prompt", required=True)
+    generate.add_argument("--recurrences", default="1,2,4")
+    generate.add_argument("--max-new-tokens", type=int, default=24)
+    generate.add_argument("--temperature", type=float, default=0.0)
+    generate.add_argument("--top-k", type=int)
+    generate.add_argument("--seed", type=int, default=42)
+    generate.add_argument("--device", choices=("auto", "mps", "cpu"), default="auto")
+    generate.set_defaults(handler=_generate_command)
     return parser
 
 
