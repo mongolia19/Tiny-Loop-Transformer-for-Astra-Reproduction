@@ -166,8 +166,14 @@ def _train_command(args: argparse.Namespace) -> None:
             if args.gradient_accumulation is not None
             else cfg.train.gradient_accumulation_steps
         ),
+        precision=args.precision,
+        save_every_steps=(args.save_every if args.save_every is not None else cfg.train.save_every_steps),
+        resume_checkpoint=args.resume,
+        target_loss=args.target_loss,
+        target_loss_window=args.target_loss_window,
     )
-    print(f"steps: {result.steps}; final loss: {result.losses[-1]:.6f}")
+    final_loss = f"{result.losses[-1]:.6f}" if result.losses else "unchanged"
+    print(f"steps: {result.steps}; final loss: {final_loss}")
     print(f"checkpoint: {result.checkpoint}")
 
 
@@ -218,6 +224,11 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--memory-probe", action="store_true")
     train.add_argument("--sequence-length", type=int)
     train.add_argument("--gradient-accumulation", type=int)
+    train.add_argument("--precision", choices=("fp32", "fp16", "bf16"), default="fp32")
+    train.add_argument("--save-every", type=int, help="overwrite checkpoint-latest.pt every N steps")
+    train.add_argument("--resume", help="resume from a checkpoint")
+    train.add_argument("--target-loss", type=float, help="stop when the loss-window mean is below this value")
+    train.add_argument("--target-loss-window", type=int, default=100)
     train.set_defaults(handler=_train_command)
     generate = subparsers.add_parser("generate", help="compare generation at recurrence depths")
     generate.add_argument("--checkpoint", required=True)
