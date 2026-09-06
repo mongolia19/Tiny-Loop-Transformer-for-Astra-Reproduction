@@ -39,6 +39,15 @@ def test_target_cli_arguments_are_typed():
     assert args.target_loss_window == 100
 
 
+def test_generate_cli_accepts_cuda():
+    from recurrent_transformer.cli import build_parser
+
+    args = build_parser().parse_args([
+        "generate", "--checkpoint", "model.pt", "--prompt", "hello", "--device", "cuda",
+    ])
+    assert args.device == "cuda"
+
+
 def test_one_step_updates_shared_core_and_writes_checkpoint(tmp_path):
     model = RecurrentTransformer(tiny_config())
     batches = [torch.randint(0, 64, (2, 8))]

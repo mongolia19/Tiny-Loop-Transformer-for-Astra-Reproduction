@@ -50,7 +50,7 @@ def loss_target_reached(losses: list[float], *, target: float, window_size: int)
 
 def select_device(requested: str = "auto") -> torch.device:
     if requested == "auto":
-        requested = "mps" if torch.backends.mps.is_available() else "cpu"
+        requested = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
     if requested == "mps" and not torch.backends.mps.is_available():
         raise RuntimeError("MPS was requested but is not available; use --device cpu")
     if requested == "cuda" and not torch.cuda.is_available():

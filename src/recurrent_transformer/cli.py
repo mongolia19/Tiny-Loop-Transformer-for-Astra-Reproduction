@@ -239,7 +239,7 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--temperature", type=float, default=0.0)
     generate.add_argument("--top-k", type=int)
     generate.add_argument("--seed", type=int, default=42)
-    generate.add_argument("--device", choices=("auto", "mps", "cpu"), default="auto")
+    generate.add_argument("--device", choices=("auto", "mps", "cuda", "cpu"), default="auto")
     generate.set_defaults(handler=_generate_command)
     return parser
 

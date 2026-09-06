@@ -193,3 +193,19 @@ python -m pytest -q
 python -m compileall -q src
 git diff --check
 ```
+
+## Windows + NVIDIA CUDA
+
+Install a CUDA-enabled PyTorch wheel matching the installed NVIDIA driver, then install this project with `pip install -e .`. Use PowerShell with `$env:PYTHONPATH="src"` and pass `--device cuda`; `--precision bf16` is recommended on Ampere or newer GPUs, while `--precision fp16` supports older CUDA GPUs.
+
+```powershell
+$env:PYTHONPATH="src"
+python -m recurrent_transformer.cli train `
+  --config configs/phase1-safe.yaml `
+  --english data/phase1/english.txt `
+  --chinese data/phase1/chinese.txt `
+  --output artifacts/cuda-run `
+  --device cuda --precision bf16 --steps 10
+```
+
+Run a short smoke test first, then remove `--steps 10` and add `--save-every 500` for long training. The `auto` device mode prefers CUDA when available, then MPS, then CPU.
