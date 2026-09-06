@@ -72,12 +72,15 @@ class TrainConfig:
     max_grad_norm: float = 1.0
     device: str = "auto"
     seed: int = 42
+    save_every_steps: int = 0
 
     def __post_init__(self) -> None:
         if self.max_steps <= 0 or self.micro_batch_size <= 0:
             raise ValueError("training steps and batch size must be positive")
         if self.gradient_accumulation_steps <= 0:
             raise ValueError("gradient_accumulation_steps must be positive")
+        if self.save_every_steps < 0:
+            raise ValueError("save_every_steps must be non-negative")
         if self.learning_rate <= 0 or self.max_grad_norm <= 0:
             raise ValueError("learning_rate and max_grad_norm must be positive")
         if self.device not in {"auto", "mps", "cpu", "cuda"}:

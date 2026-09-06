@@ -8,10 +8,10 @@ model:
   coda_layers: 2
   max_seq_len: 512
   min_recurrences: 1
-  max_recurrences: 4
+  max_recurrences: 1
 data:
   max_bytes_per_language: 209715200
-  sequence_length: 256
+  sequence_length: 128
   tokenizer_vocab_size: 16000
   validation_fraction: 0.01
   seed: 42
@@ -24,10 +24,10 @@ data:
   dataset_revision: main
   artifact_dir: data/phase1
 train:
-  max_steps: 1000
+  max_steps: 10000
   micro_batch_size: 1
-  gradient_accumulation_steps: 1
-  learning_rate: 0.0003
+  gradient_accumulation_steps: 8
+  learning_rate: 0.0001
   weight_decay: 0.1
   max_grad_norm: 1.0
   device: mps

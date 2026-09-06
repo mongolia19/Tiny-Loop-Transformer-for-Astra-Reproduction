@@ -156,7 +156,7 @@ class RecurrentTransformer(nn.Module):
             if labels.shape != input_ids.shape:
                 raise ValueError("labels must match input_ids shape")
             loss = F.cross_entropy(
-                logits[:, :-1].contiguous().view(-1, logits.shape[-1]),
+                logits[:, :-1].float().contiguous().view(-1, logits.shape[-1]),
                 labels[:, 1:].contiguous().view(-1),
             )
         return ModelOutput(logits=logits, loss=loss)
