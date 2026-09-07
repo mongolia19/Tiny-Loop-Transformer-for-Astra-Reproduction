@@ -11,9 +11,10 @@ from .corpus import (
     check_disk_budget,
     mix_bilingual,
     read_local_documents,
+    iter_local_documents,
     stream_huggingface_documents,
 )
-from .dataset import pack_documents
+from .dataset import DiskTokenBatches, pack_documents, pack_documents_to_disk
 from .generate import generate_ids
 from .tokenizer import Tokenizer, train_tokenizer
 from .train import select_device, train_steps
@@ -131,18 +132,38 @@ def _prepare_data_command(args: argparse.Namespace) -> None:
 def _train_command(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     output = Path(args.output)
-    english = read_local_documents([args.english], max_bytes=cfg.data.max_bytes_per_language)
-    chinese = read_local_documents([args.chinese], max_bytes=cfg.data.max_bytes_per_language)
-    documents = mix_bilingual(english, chinese, seed=cfg.data.seed)
-    tokenizer = train_tokenizer(
-        documents,
-        output / "tokenizer",
-        vocab_size=cfg.data.tokenizer_vocab_size,
-    )
+    token_dir = Path(args.tokens_dir) if args.tokens_dir else None
+    tokenizer_path = Path(args.tokenizer) if args.tokenizer else (token_dir / "tokenizer.model" if token_dir else None)
+    if tokenizer_path and tokenizer_path.is_file():
+        tokenizer = Tokenizer(tokenizer_path)
+    else:
+        # Keep only a small sample for tokenizer training. The full corpus is
+        # consumed again below as a one-document-at-a-time iterator.
+        samples = read_local_documents(
+            [args.english, args.chinese], max_bytes=min(cfg.data.max_bytes_per_language, 20 * 1024 * 1024),
+        )
+        tokenizer = train_tokenizer(samples, output / "tokenizer", vocab_size=cfg.data.tokenizer_vocab_size)
     if tokenizer.vocab_size > cfg.model.vocab_size:
         raise ValueError("tokenizer vocabulary exceeds model vocabulary")
     sequence_length = args.sequence_length or cfg.data.sequence_length
-    blocks = pack_documents(documents, tokenizer, seq_len=sequence_length)
+    if token_dir:
+        token_paths = sorted(token_dir.glob("*.int32"))
+        if len(token_paths) < 2:
+            raise FileNotFoundError(f"prepared token files missing under {token_dir}")
+    else:
+        token_paths = []
+        for language, source in (("english", args.english), ("chinese", args.chinese)):
+            token_path = output / f"{language}.int32"
+            pack_documents_to_disk(
+                iter_local_documents([source], max_bytes=cfg.data.max_bytes_per_language),
+                tokenizer, seq_len=sequence_length, path=token_path,
+            )
+            token_paths.append(token_path)
+    blocks = DiskTokenBatches(
+        token_paths,
+        seq_len=sequence_length,
+        batch_size=cfg.train.micro_batch_size,
+    )
     from .model import RecurrentTransformer
 
     model = RecurrentTransformer(cfg.model)
@@ -151,7 +172,7 @@ def _train_command(args: argparse.Namespace) -> None:
     steps = 1 if args.memory_probe else (args.steps or cfg.train.max_steps)
     result = train_steps(
         model,
-        blocks.split(cfg.train.micro_batch_size),
+        blocks,
         device=args.device or cfg.train.device,
         max_steps=steps,
         min_recurrences=cfg.model.min_recurrences,
@@ -219,6 +240,8 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--english", required=True)
     train.add_argument("--chinese", required=True)
     train.add_argument("--output", required=True)
+    train.add_argument("--tokens-dir", help="prepared directory containing tokenizer.model and language .int32 files")
+    train.add_argument("--tokenizer", help="existing tokenizer.model; avoids retraining it")
     train.add_argument("--steps", type=int)
     train.add_argument("--device", choices=("auto", "mps", "cpu", "cuda"))
     train.add_argument("--memory-probe", action="store_true")

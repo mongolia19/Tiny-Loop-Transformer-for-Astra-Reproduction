@@ -121,6 +121,8 @@ def train_steps(
             rng.setstate(payload["python_rng_state"])
         if payload.get("torch_rng_state") is not None:
             torch.set_rng_state(payload["torch_rng_state"])
+        if payload.get("data_state") is not None and hasattr(batches, "load_state_dict"):
+            batches.load_state_dict(payload["data_state"])
     losses: list[float] = []
     batch_iterator = iter(batches)
     optimizer.zero_grad(set_to_none=True)
@@ -205,13 +207,15 @@ def train_steps(
                 }) + "\n")
                 metrics.flush()
                 checkpoint = save_checkpoint(
-                    output / "checkpoint-latest.pt", model=model, optimizer=optimizer, step=step
+                    output / "checkpoint-latest.pt", model=model, optimizer=optimizer, step=step,
+                    data_state=getattr(batches, "state_dict", lambda: None)(),
                 )
                 return TrainResult(steps=step, losses=losses, checkpoint=checkpoint)
             if save_every_steps and step % save_every_steps == 0 and (
                 target_loss is not None or step < max_steps
             ):
-                save_checkpoint(output / "checkpoint-latest.pt", model=model, optimizer=optimizer, step=step)
+                save_checkpoint(output / "checkpoint-latest.pt", model=model, optimizer=optimizer,
+                                step=step, data_state=getattr(batches, "state_dict", lambda: None)())
 
     checkpoint_name = "checkpoint-latest.pt" if save_every_steps else f"checkpoint-{max_steps:06d}.pt"
     checkpoint = save_checkpoint(
@@ -219,5 +223,6 @@ def train_steps(
         model=model,
         optimizer=optimizer,
         step=completed_step,
+        data_state=getattr(batches, "state_dict", lambda: None)(),
     )
     return TrainResult(steps=completed_step, losses=losses, checkpoint=checkpoint)

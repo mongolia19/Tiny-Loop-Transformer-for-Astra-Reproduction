@@ -20,6 +20,7 @@ def save_checkpoint(
     optimizer: torch.optim.Optimizer | None = None,
     scheduler: Any | None = None,
     tokenizer_path: str | Path | None = None,
+    data_state: dict[str, Any] | None = None,
 ) -> Path:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -33,6 +34,7 @@ def save_checkpoint(
         "tokenizer_path": str(tokenizer_path) if tokenizer_path is not None else None,
         "torch_rng_state": torch.get_rng_state(),
         "python_rng_state": random.getstate(),
+        "data_state": data_state,
     }
     try:
         torch.save(payload, temporary)

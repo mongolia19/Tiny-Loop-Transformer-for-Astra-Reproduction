@@ -60,6 +60,9 @@ def should_launch(*, running: bool, completed: bool, checkpoint_exists: bool) ->
 
 
 def main() -> int:
+    if (TEN_M_OUTPUT / "STOPPED_BY_USER").exists():
+        print("100M training disabled by user; do not resume")
+        return 0
     running = training_is_running("mps-safe-10m")
     metrics = TEN_M_OUTPUT / "metrics.jsonl"
     checkpoint = TEN_M_OUTPUT / "checkpoint-latest.pt"

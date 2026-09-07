@@ -12,6 +12,8 @@ dependencies = [
   "sentencepiece>=0.2",
   "datasets>=3.0",
   "pyyaml>=6.0",
+  "ijson>=3.3",
+  "numpy>=1.26",
 ]
 
 [project.optional-dependencies]

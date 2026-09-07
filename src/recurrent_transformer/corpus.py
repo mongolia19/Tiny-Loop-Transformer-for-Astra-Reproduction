@@ -56,6 +56,23 @@ def read_local_documents(
     return documents
 
 
+def iter_local_documents(paths: Sequence[str | Path], max_bytes: int, text_key: str = "text") -> Iterable[str]:
+    """Read one document at a time; duplicate removal belongs to corpus preparation."""
+    if max_bytes <= 0:
+        raise ValueError("max_bytes must be positive")
+    total = 0
+    for raw_path in paths:
+        for raw in _iter_path(Path(raw_path), text_key):
+            document = normalize_text(raw)
+            if not document:
+                continue
+            size = len(document.encode("utf-8"))
+            if total + size > max_bytes:
+                return
+            total += size
+            yield document
+
+
 def collect_streamed_documents(
     rows: Iterable[dict],
     *,
