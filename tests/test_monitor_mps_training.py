@@ -23,6 +23,7 @@ def test_continuation_command_resumes_bf16_with_target():
     joined = " ".join(command)
     assert "--resume artifacts/mps-safe-10m/checkpoint-latest.pt" in joined
     assert "--precision bf16" in joined
+    assert "--gradient-accumulation 1" in joined
     assert "--target-loss 1.0" in joined
     assert "--target-loss-window 100" in joined
     assert "--steps 9766" not in joined
