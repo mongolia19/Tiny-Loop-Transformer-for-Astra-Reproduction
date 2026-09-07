@@ -45,7 +45,7 @@ def continuation_command(checkpoint: Path) -> list[str]:
         "--chinese", "data/phase1/chinese.txt",
         "--output", "artifacts/mps-safe-10m",
         "--sequence-length", "128",
-        "--gradient-accumulation", "1",
+        "--gradient-accumulation", "4",
         "--device", "mps",
         "--precision", "bf16",
         "--save-every", "500",
