@@ -1,0 +1,24 @@
+{
+  "format": "pytorch_state_dict",
+  "precision": "bf16",
+  "training_step": 2016,
+  "model_parameters": 33104384,
+  "weights_file": "model-bf16.pt",
+  "weights_bytes": 66228725,
+  "weights_sha256": "4ca6d39f7665ad0d40af5ccd82ff7beb91266e34f8e2b2b3bf99d2558fed2f0f",
+  "tokenizer_file": "tokenizer.model",
+  "config": {
+    "vocab_size": 16000,
+    "d_model": 512,
+    "n_heads": 8,
+    "mlp_hidden_size": 1344,
+    "prelude_layers": 2,
+    "recurrent_core_layers": 4,
+    "coda_layers": 2,
+    "max_seq_len": 2048,
+    "min_recurrences": 2,
+    "max_recurrences": 2,
+    "rope_base": 10000.0,
+    "rms_norm_eps": 1e-05
+  }
+}
